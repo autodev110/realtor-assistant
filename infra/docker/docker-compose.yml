@@ -1,0 +1,37 @@
+version: "3.9"
+services:
+  api:
+    build: ..
+    env_file: ../.env
+    [cite_start]command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8080 --proxy-headers [cite: 355]
+    [cite_start]depends_on: [db, redis] [cite: 356]
+    [cite_start]ports: ["8080:8080"] [cite: 357]
+  
+  workers:
+    build: ..
+    env_file: ../.env
+    [cite_start]command: python apps/workers/scheduler.py [cite: 361]
+    [cite_start]depends_on: [db, redis] [cite: 362]
+  
+  db:
+    [cite_start]image: postgres:16 [cite: 364]
+    environment:
+      [cite_start]POSTGRES_USER: realtor [cite: 366]
+      [cite_start]POSTGRES_PASSWORD: realtor [cite: 367]
+      [cite_start]POSTGRES_DB: realtor [cite: 368]
+    [cite_start]ports: ["5432:5432"] [cite: 369]
+  
+  redis:
+    [cite_start]image: redis:7 [cite: 371]
+    [cite_start]ports: ["6379:6379"] [cite: 372]
+  
+  wkhtmltopdf:
+    # Used by the core/reporters/pdf.py to generate CMA PDFs [cite: 287]
+    [cite_start]image: surnet/alpine-wkhtmltopdf:3.19-0.12.6-full [cite: 374]
+  
+  mailhog:
+    # Captures all outgoing SMTP traffic for testing digests [cite: 421]
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025" # SMTP port
+      - "8025:8025" # Web UI

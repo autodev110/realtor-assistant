@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+numpy
+jinja2
+requests
+pdfkit
+APScheduler
