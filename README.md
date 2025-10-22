@@ -1,89 +1,159 @@
-#  AI Realtor Assistant MVP
+# Realtor Assistant Bot
 
-This project implements an AI assistant designed to automate compliant listing ingestion, intelligent client matching, and personalized messaging for real estate agents[cite: 2].
+Production-grade scaffold for an intelligent real estate assistant that keeps listings compliant, learns every client's preferences, runs quick CMAs, drafts agent-quality messaging, and flags undervalued opportunities for admin review.
 
-##  Core Features Overview
+```
+                ┌────────────────────────────┐
+                │        React Inbox         │
+                │ (apps/web - optional UI)   │
+                └────────────┬───────────────┘
+                             │ REST / Webhooks
+┌────────────────────────────┴─────────────────────────────┐
+│                    FastAPI Application                   │
+│  • Email webhook + deal alerts + approval endpoints      │
+│  • Preference retraining + Draft review API              │
+└──────────────┬──────────────────────┬────────────────────┘
+               │                      │
+               │                      │ Prometheus / Sentry
+               │                      ▼
+               │            infra/monitoring.py
+               │
+               │  Schedules + Celery tasks
+               ▼
+      apps/workers/ (ingestion, CMA, digests) ──┐
+                                                │
+                                    ┌───────────┴────────────┐
+                                    │   Core Domain Layer    │
+                                    │• providers/           │
+                                    │• cma/engine.py        │
+                                    │• matching/preferences │
+                                    │• messaging/compose    │
+                                    │• reporters/pdf        │
+                                    │• compliance/audit     │
+                                    └──────────┬────────────┘
+                                               │ SQLAlchemy
+                                               ▼
+                               PostgreSQL + Redis + deal alerts
+```
 
-| Feature | Description | Code Modules |
-| :--- | :--- | :--- |
-| **Ingest** | [cite_start]Compliantly pulls and normalizes listing data from MLS (RESO Web API) and vendors (ATTOM, RPR), ensuring a strictly on-market filter[cite: 3]. | `core/providers`, `apps/workers/ingest.py` |
-| **Match** | [cite_start]Learns a per-client **"taste vector"** (weights) from interactions (likes/dwell) to score and rank new listings[cite: 4, 197]. | `core/matching/matcher.py` |
-| **Explainable Matching** | [cite_start]Provides "Why this home?" chips (e.g., `+kitchen finishes, -train noise`) for transparency and client feedback[cite: 20]. | `core/matching/explain.py` |
-| **CMA** | [cite_start]Selects smart comps, applies adjustments (e.g., $\pm \$12\text{k}$/bed) [cite: 246][cite_start], and generates a **price band & confidence** score[cite: 5, 252]. | `core/cma/engine.py` |
-| **Message & Audit** | [cite_start]Drafts summaries in the agent's tone, packages them as a one-pager PDF, and queues them for agent approval[cite: 6]. [cite_start]Logs all data sources and recipients for compliance[cite: 7, 345]. | `core/messaging`, `core/reporters`, `core/compliance` |
+## Key Capabilities
 
----
+- **Compliant ingestion** of Bright MLS (RESO), ATTOM, RPR, and partner feeds (Zillow/Realtor/Coldwell Banker stubs). Status mapping + dedupe guard `core/providers/`.
+- **Preference learning & explainability** via `core/matching/preferences.py` with cosine similarity, decay, and rationale chips.
+- **CMA engine** in `core/cma/engine.py` selects radius/time-window comps, applies adjustments, produces price bands, PSF chart data, and auto-flags deals priced ≤80% of market when no major defects.
+- **Messaging pipeline** uses tone profiles and Jinja templates to build reviewable email drafts, optionally enriched with WeasyPrint CMA PDFs (`core/reporters/pdf.py`).
+- **Audit & Compliance** guardrails (PII redaction, license flags, audit logs) live in `core/compliance/audit.py`.
+- **Admin deal desk**: deal alerts persisted to `deal_alerts` table and surfaced via `/admin/deal-alerts` endpoints.
+- **Observability**: `/metrics` Prometheus endpoint + optional Sentry DSN in `infra/monitoring.py`.
 
-##  Local Quickstart (SQLite, Python-only)
+## Repo Layout
 
-This is the recommended path for development and testing core logic.
+```
+apps/
+  api/           FastAPI app + routes (email webhook, drafts, deal alerts, retrain)
+  workers/       APScheduler + Celery wrappers + ingestion/CMA/digest tasks
+  web/           Placeholder for lightweight React approval UI (optional)
+core/
+  config.py      Central runtime settings via pydantic-settings
+  providers/     MLS/partner provider stubs, status mapping, normalization helpers
+  cma/           CMA engine + adjustments + deal detection
+  matching/      Preference vectors, scoring, explainability
+  messaging/     Tone profiles and Jinja2 message composers
+  reporters/     Simple PDF generator (WeasyPrint fallback to HTML)
+  storage/       SQLAlchemy models, session helpers, upsert logic
+  compliance/    Audit logging + PII masking helpers
+infra/
+  docker/        Dockerfile + docker-compose stack (API, worker, Postgres, Redis, Mailhog)
+  monitoring.py  Prometheus middleware + Sentry init stub
+scripts/
+  bootstrap_demo.py  Seed sample clients/listings + generate initial drafts
+examples/
+  (added via tests/fixtures) sample payloads and CMA datasets
+```
 
-1.  **Clone/Open Project** and ensure you are in the root directory.
-2.  **Install Dependencies** (Ensure Python 3 is installed and use `python3` if `python` fails):
-    ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate
-    pip install -r requirements.txt
-    ```
-3.  **Seed Database** (Creates `realtor.db` and populates mock data):
-    ```bash
-    python scripts/seed.py
-    ```
-4.  **Run API Server:**
-    ```bash
-    uvicorn apps.api.main:app --reload --port 8080
-    ```
+## Prerequisites
 
-### Testing Endpoints
+- Python **3.11+**
+- Postgres 14+ (dev can use SQLite via `DATABASE_URL`)
+- Redis 6+ for Celery/queues (optional but wired into Docker stack)
+- Node/Yarn only if you plan to build the optional React inbox
 
-Access the interactive documentation at: **`http://127.0.0.1:8080/docs`**
+## Local Development (no Docker)
 
-| Core Feature | Method | Endpoint / Example |
-| :--- | :--- | :--- |
-| **Recommendations** | `GET` | `/clients/1/recommendations?limit=5` |
-| **Interactions** | `POST` | `/interactions?client_id=1&listing_id=3&action=like` |
-| **CMA** | `POST` | `/cma/run` with body `{"subject_listing_id": 1}` |
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env
+python scripts/bootstrap_demo.py
+uvicorn apps.api.main:app --reload --port 8080
+```
 
----
+Visit:
+- API Docs: http://127.0.0.1:8080/docs
+- Prometheus metrics: http://127.0.0.1:8080/metrics
+- Deal alerts: `GET /admin/deal-alerts`
 
-##  Production-Ready Setup (Docker Compose)
+Background jobs (optional during dev):
 
-For a production environment using a proper database (Postgres), caching (Redis), and email testing (MailHog).
+```bash
+python -m apps.workers.scheduler  # APScheduler loop
+```
 
-1.  **Prerequisites**: Ensure you have **Docker** installed and running.
-2.  **Configure `.env`**: Copy the example file and update the `DATABASE_URL` to point to the Postgres service defined in Docker:
-    ```bash
-    cp .env.example .env
-    # Change DATABASE_URL in .env to:
-    # [cite_start]DATABASE_URL=postgresql+psycopg2://realtor:realtor@db:5432/realtor [cite: 376]
-    # [cite_start]Add your MLS keys (BRIGHT_RESO_TOKEN [cite: 379][cite_start], ATTOM_TOKEN[cite: 380], etc.)
-    ```
-3.  **Launch Stack**: Build and run all services from the `infra/docker` directory:
-    ```bash
-    cd infra/docker
-    docker compose up --build -d
-    ```
+## Docker Compose Stack
 
-### Docker Service Access
+```bash
+cp .env.example .env
+cd infra/docker
+docker compose up --build
+```
 
-* **API/Docs**: `http://localhost:8080/docs`
-* [cite_start]**MailHog UI**: `http://localhost:8025` (View emails sent by the `workers` service) [cite: 445]
+Services:
+- `api`: FastAPI application (port 8080)
+- `worker`: APScheduler worker for ingestion + digests
+- `db`: Postgres (user/pass `realtor`)
+- `redis`: Broker/cache (Celery ready)
+- `mailhog`: test SMTP inbox (ports 1025/8025)
 
-[cite_start]The **`workers`** service automatically runs the `ingest` job [cite: 336] [cite_start]and sends the `morning_digest` email for approval[cite: 338, 446].
+## Environment Variables (fill in `.env`)
 
----
+- **Provider credentials**: `BRIGHTMLS_*`, `ATTOM_API_KEY`, `RPR_API_KEY`, plus partner feed keys when available.
+- **Messaging**: `SMTP_*` for outbound mail, `LLM_API_KEY` for optional tone polishing.
+- **Monitoring**: set `SENTRY_DSN` to enable error reporting; toggle Prometheus with `PROMETHEUS_ENABLED`.
+- **Feature toggles**: adjust `ALLOW_ACTIVE_UNDER_CONTRACT`, `ALLOW_COMING_SOON`, `DEAL_DISCOUNT_THRESHOLD`.
 
-##  Compliance and Attribution
+## Workflows
 
-* [cite_start]**Data Sources**: Direct scraping of consumer sites (Zillow/Realtor) is illegal and risks licenses[cite: 8]. [cite_start]Data must come from licensed feeds: Bright MLS/RESO [cite: 9][cite_start], ATTOM [cite: 10][cite_start], RPR[cite: 11].
-* [cite_start]**Audit Trail**: The system logs every data source, export, and recipient in the `AuditLog` table[cite: 7, 345].
-* [cite_start]**Fair Housing**: Guardrails block protected-class proxies in prompts and run bias checks on feature importances[cite: 21, 346].
-* [cite_start]**Media**: Photo/remarks reuse must honor attribution and retention windows specified by MLS agreements[cite: 12, 344].
+1. **Email intake** (`POST /webhook/email`): classifies spam/auto-replies, attaches to `email_envelopes`, auto-creates clients when needed.
+2. **Ingestion jobs** (`apps/workers/tasks.ingest_provider`): call RESO/partner APIs, normalize via `NormalizedListing`, dedupe by provider+ID/address, persist to Postgres.
+3. **CMA generation**: `ensure_cma_report` pulls comps within radius/days window, computes adjustments, stores `CMAReport` + `ComparableSale`, renders PDF/HTML, and flags deals stored in `deal_alerts`.
+4. **Preference updates**: interactions feed `retrain` endpoint or scheduler, updating client `preference_vector` with decay + cosine scoring.
+5. **Draft assembly**: `generate_client_digest` ranks listings, attaches CMA stats, renders tone-aware copy, and saves drafts for approval. Optional auto-send respects `client.auto_send_enabled` with audit logging.
 
----
+## Admin Deal Desk
 
-##  Roadmap (v1+)
+- Review flagged opportunities via `GET /admin/deal-alerts` (filtered by `acknowledged`).
+- Acknowledge/annotate using `POST /admin/deal-alerts/{id}/acknowledge`.
+- Alerts exclude properties with recorded mechanical/electrical/structural issues to prevent false positives.
 
-* [cite_start]Implement the **Isochrone commute** scorer (Valhalla/Mapbox) and **Risk layers** (FEMA flood, wildfire, lead)[cite: 14, 17, 391].
-* [cite_start]Integrate proper **LightGBM** ranking with SHAP explanations for enhanced matching[cite: 390].
-* [cite_start]Add a React mini-inbox UI for agents to quickly **Approve/Skip** daily digests[cite: 341].
+## Testing & Quality
+
+```bash
+pytest
+flake8
+black --check .
+isort --check-only .
+```
+
+CI workflow (`.github/workflows/ci.yml`) runs lint + tests on push/PR.
+
+## Next Steps / Ideas
+
+1. **Inbox UI** (`apps/web`): React mini-dashboard for quarantine inbox, draft approvals, deal alert triage.
+2. **Provider integrations**: swap stubs with production adapters (Bright MLS RESO, ATTOM property API, RPR).
+3. **LLM polish**: plug in agent tone fine-tuning via `LLM_PROVIDER` (OpenAI, Anthropic, etc.) while enforcing PII guardrails.
+4. **Rate limiting & retries**: extend `apps/workers/tasks.ingest_provider` with Redis-based buckets and tenacity-style backoff.
+5. **Security hardening**: adopt AWS Secrets Manager or Vault for secrets, enable HTTPS/TLS termination in front of FastAPI.
+6. **Analytics**: push metrics to Grafana/Prometheus and wire alerting on ingestion failures or CMA anomalies.
+
+Happy shipping! Fill in credentials, wire your infra, and the scaffold is ready for production hardening.

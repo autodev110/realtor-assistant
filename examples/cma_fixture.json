@@ -1,0 +1,29 @@
+{
+  "subject": {
+    "id": "SUBJECT-1",
+    "list_price_cents": 35000000,
+    "sqft": 1800,
+    "beds": 3,
+    "baths": 2
+  },
+  "comparables": [
+    {
+      "id": "COMP-1",
+      "close_price_cents": 42000000,
+      "sqft": 1900,
+      "beds": 3,
+      "baths": 2,
+      "distance_miles": 0.4,
+      "days_back": 45
+    },
+    {
+      "id": "COMP-2",
+      "close_price_cents": 43500000,
+      "sqft": 2000,
+      "beds": 3,
+      "baths": 3,
+      "distance_miles": 0.6,
+      "days_back": 60
+    }
+  ]
+}

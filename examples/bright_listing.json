@@ -1,0 +1,18 @@
+{
+  "ListingId": "BRIGHT-EX-001",
+  "ListingKey": "BRIGHT-EX-001",
+  "StandardStatus": "Active",
+  "UnparsedAddress": "101 Example Street",
+  "City": "Philadelphia",
+  "StateOrProvince": "PA",
+  "PostalCode": "19103",
+  "CountyOrParish": "Philadelphia",
+  "Latitude": 39.9526,
+  "Longitude": -75.1652,
+  "ListPrice": 525000,
+  "BedroomsTotal": 3,
+  "BathroomsTotalDecimal": 2.5,
+  "LivingArea": 2100,
+  "LotSizeSquareFeet": 1600,
+  "YearBuilt": 1920
+}

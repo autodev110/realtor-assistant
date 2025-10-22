@@ -1,35 +1,44 @@
-import os
+from __future__ import annotations
+
+from contextlib import contextmanager
+from typing import Iterator
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
+from sqlalchemy.orm import Session, sessionmaker
 
-# Load environment variables from .env file (if you created one)
-# We fall back to the SQLite default if the env var isn't set, 
-# though it's best practice to use os.getenv in a real project
-load_dotenv()
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./realtor.db")
+from core.config import get_settings
 
-# 1. Create the SQLAlchemy Engine
-# The connect_args are only needed for SQLite to allow multiple threads 
-# (required by FastAPI/Uvicorn workers) to access the same DB connection.
-if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(
-        SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-    )
-else:
-    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+from .models import Base
 
-# 2. Create the SessionLocal class
-# This session will be used to handle database connections during a request.
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 3. Import Base from models.py for schema setup
-from .models import Base 
+settings = get_settings()
 
-# 4. Create database tables
-# This step is essential for the quickstart using SQLite.
-# For production/Postgres with Docker, this is often done separately 
-# or via an init script, but we keep it here for the MVP run.
-def create_db_and_tables():
-    # Only creates tables if they don't exist
+engine_options = {"future": True, "pool_pre_ping": True}
+connect_args = {}
+if settings.database_url.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+    engine_options["pool_pre_ping"] = False
+    engine_options["pool_recycle"] = None
+
+engine = create_engine(settings.database_url, connect_args=connect_args, **engine_options)
+
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
+
+
+def init_db() -> None:
+    """Create database tables if they do not exist."""
     Base.metadata.create_all(bind=engine)
+
+
+@contextmanager
+def session_scope() -> Iterator[Session]:
+    """Provide a transactional scope for database operations."""
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()

@@ -1,0 +1,37 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+known_first_party = ["core", "apps", "infra"]
+
+[tool.flake8]
+max-line-length = 100
+exclude = [
+    ".venv",
+    "__pycache__",
+    "build",
+]
+ignore = [
+    "E203",
+    "W503",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra --cov=core --cov=apps --cov=infra"
+testpaths = [
+    "tests",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["apps", "core", "infra"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
