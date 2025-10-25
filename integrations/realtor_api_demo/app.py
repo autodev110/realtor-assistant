@@ -24,9 +24,8 @@ try:
     LEAD_ARCHIVE_DIR = Path(os.getenv("LEAD_ARCHIVE_DIR", "leads"))
     LEAD_ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 except OSError:
-    # Fallback to in-memory logging when disk is unavailable
     LEAD_ARCHIVE_DIR = None
-    logger.warning("File system is read-only; lead archiving disabled.")
+    print("⚠️ File system is read-only; lead archiving disabled.")
 
 
 @app.route("/", methods=["GET"])
@@ -65,7 +64,7 @@ def _persist_lead_payload(payload: Dict[str, Any]) -> None:
         lead_id = payload.get("lead_id", "unknown")
         archive_path = LEAD_ARCHIVE_DIR / f"{timestamp}_{lead_id}.json"
         archive_path.write_text(formatted_payload, encoding="utf-8")
-        logger.info("Lead payload archived at %s", archive_path)
+        logger.info(f"Lead payload archived at {archive_path}")
     else:
         logger.info("Lead payload logging only (no filesystem access).")
 
