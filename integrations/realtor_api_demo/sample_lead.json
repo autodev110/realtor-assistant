@@ -1,0 +1,36 @@
+{
+  "lead_id": "RDC-1234567890",
+  "timestamp": "2025-10-22T14:30:00Z",
+  "lead_type": "ConnectionsPlus",
+  "lead_contact": {
+    "name": "Jane Doe",
+    "email": "jane.doe@example.com",
+    "phone": "555-123-4567",
+    "role": "Buyer"
+  },
+  "property_info": {
+    "address": "123 Main St, Anytown, CA 90210",
+    "mls_id": "ABC1234567",
+    "listing_url": "https://www.realtor.com/realestateandhomes-detail/123-Main-St",
+    "price": 550000,
+    "beds": 3,
+    "baths": 2.5,
+    "latitude": 34.0522,
+    "longitude": -118.2437
+  },
+  "home_buyer_activity": {
+    "recent_searches": [
+      "Los Angeles, CA $500k-600k",
+      "3 bed 2 bath"
+    ],
+    "saved_properties": [
+      "MLS:XYZ987",
+      "MLS:DEF654"
+    ],
+    "days_since_last_view": 1
+  },
+  "source_details": {
+    "source_system": "Realtor.com",
+    "inquiry_type": "Contact Agent"
+  }
+}

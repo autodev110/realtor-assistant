@@ -118,7 +118,7 @@ def generate_client_digest(session, client: Client, limit: int = 5) -> None:
         status="pending_approval",
         listings_context=listing_contexts,
         auto_send=client.auto_send_enabled,
-        metadata={"listing_ids": listing_ids},
+        context={"listing_ids": listing_ids},
     )
     session.add(draft)
 

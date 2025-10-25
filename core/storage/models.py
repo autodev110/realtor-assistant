@@ -191,7 +191,7 @@ class Interaction(TimestampMixin, Base):
         ),
         nullable=False,
     )
-    metadata: Mapped[Dict] = mapped_column(JSON, default=dict, nullable=False)
+    context: Mapped[Dict] = mapped_column(JSON, default=dict, nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(
         UTCDateTime, nullable=False, default=datetime.utcnow
     )
@@ -240,7 +240,7 @@ class DraftMessage(TimestampMixin, Base):
     auto_send: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     scheduled_send_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime)
     sent_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime)
-    metadata: Mapped[Dict] = mapped_column(JSON, default=dict, nullable=False)
+    context: Mapped[Dict] = mapped_column(JSON, default=dict, nullable=False)
 
     client: Mapped[Client] = relationship("Client", back_populates="drafts")
     cma_report: Mapped[Optional["CMAReport"]] = relationship("CMAReport")

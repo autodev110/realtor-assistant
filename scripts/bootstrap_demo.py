@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import os
+import sys
 import uuid
 from datetime import datetime, timedelta
 from typing import List
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.storage.db import engine, init_db, session_scope
 from core.storage.models import Base, Client, Interaction
@@ -191,7 +195,7 @@ def create_sample_interactions(session, client: Client, listing_ids: List[str]) 
         client_id=client.id,
         listing_id=uuid.UUID(listing_ids[0]),
         interaction_type="like",
-        metadata={"signal": 5.0},
+        context={"signal": 5.0},
     )
     session.add(interaction)
 

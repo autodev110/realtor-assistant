@@ -251,7 +251,7 @@ def retrain(client_id: UUID, request: RetrainRequest, db: Session = Depends(get_
         .all()
     )
     interaction_payload = [
-        {"listing_id": str(ix.listing_id), "signal": ix.metadata.get("signal", 0.0)}
+        {"listing_id": str(ix.listing_id), "signal": ix.context.get("signal", 0.0)}
         for ix in interactions
         if ix.listing_id
     ]
