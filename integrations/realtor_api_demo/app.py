@@ -6,7 +6,10 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from flask import Flask, jsonify, request
+from dotenv import load_dotenv
 
+# Load environment variables from .env file if present
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("realtor_lead_receiver")
