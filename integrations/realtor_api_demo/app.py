@@ -19,8 +19,14 @@ app = Flask(__name__)
 # Load the expected API key (falls back to a demo value so the sample works out of the box)
 EXPECTED_API_KEY = os.getenv("REALTOR_API_KEY", "YOUR_SECRET_API_KEY_HERE_12345")
 # Directory where we'll archive incoming leads for later inspection.
-LEAD_ARCHIVE_DIR = Path(os.getenv("LEAD_ARCHIVE_DIR", "leads"))
-LEAD_ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+# Detect read-only environments like Vercel
+try:
+    LEAD_ARCHIVE_DIR = Path(os.getenv("LEAD_ARCHIVE_DIR", "leads"))
+    LEAD_ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    # Fallback to in-memory logging when disk is unavailable
+    LEAD_ARCHIVE_DIR = None
+    logger.warning("File system is read-only; lead archiving disabled.")
 
 
 @app.route("/", methods=["GET"])
@@ -54,11 +60,14 @@ def _persist_lead_payload(payload: Dict[str, Any]) -> None:
     # Convert to a pretty string so it reads clearly in the console.
     formatted_payload = json.dumps(payload, indent=2)
     logger.info("Lead payload ready for downstream processing:\n%s", formatted_payload)
-    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
-    lead_id = payload.get("lead_id", "unknown")
-    archive_path = LEAD_ARCHIVE_DIR / f"{timestamp}_{lead_id}.json"
-    archive_path.write_text(formatted_payload, encoding="utf-8")
-    logger.info("Lead payload archived at %s", archive_path)
+    if LEAD_ARCHIVE_DIR is not None:
+        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+        lead_id = payload.get("lead_id", "unknown")
+        archive_path = LEAD_ARCHIVE_DIR / f"{timestamp}_{lead_id}.json"
+        archive_path.write_text(formatted_payload, encoding="utf-8")
+        logger.info("Lead payload archived at %s", archive_path)
+    else:
+        logger.info("Lead payload logging only (no filesystem access).")
 
 
 @app.route("/realtor-lead/receive", methods=["POST", "GET"])
@@ -106,6 +115,16 @@ def latest_lead() -> Any:
     """
     Convenience endpoint to inspect the most recent archived lead in this demo.
     """
+    if LEAD_ARCHIVE_DIR is None:
+        return (
+            jsonify(
+                {
+                    "status": "disabled",
+                    "message": "Lead archiving is disabled in this environment.",
+                }
+            ),
+            503,
+        )
     lead_files = sorted(LEAD_ARCHIVE_DIR.glob("*.json"))
     if not lead_files:
         return jsonify({"status": "empty", "message": "No leads archived yet"}), 404
