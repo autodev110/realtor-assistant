@@ -1,9 +1,19 @@
 {
   "version": 2,
   "builds": [
-    { "src": "app.py", "use": "@vercel/python" }
+    {
+      "src": "integrations/realtor_api_demo/app.py",
+      "use": "@vercel/python"
+    }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "app.py" }
+    {
+      "src": "/realtor-lead/receive",
+      "dest": "integrations/realtor_api_demo/app.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "integrations/realtor_api_demo/app.py"
+    }
   ]
 }
